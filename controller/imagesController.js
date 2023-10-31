@@ -133,38 +133,48 @@ module.exports = {
     try {
       const imageId = parseInt(req.params.imageId);
 
-      const data = await images.findUnique({
-        where: {
-          id: imageId,
-        },
-      });
-
-      if (!data) {
-        return res.status(404).json({
-          error: true,
-          message: `image with id ${imageId} not found`,
-        });
-      }
-
-      const url = data.url;
-
-      if (typeof url === "string") {
-        const name = url[1];
-        const image = await imageKit.listFiles({
-          searchQuery: `name = ${name}`,
+      try {
+        const data = await images.findUnique({
+          where: {
+            id: imageId,
+          },
         });
 
-        await imageKit.deleteFile(image[0].fileId);
+        if (!data) {
+          return res.status(404).json({
+            error: true,
+            message: `Image with ID ${imageId} not found`,
+          });
+        }
+
+        const url = data.url;
+
+        if (typeof url === "string") {
+          const name = url.split("/").pop(); // Get the file name from the URL
+          const image = await imageKit.listFiles({
+            searchQuery: `name = ${name}`,
+          });
+
+          if (image.length > 0) {
+            await imageKit.deleteFile(image[0].fileId);
+          }
+        }
+
         await images.delete({
           where: {
             id: imageId,
           },
         });
-      }
 
-      return res.status(200).json({
-        message: `images with id ${imageId} success delete`,
-      });
+        return res.status(200).json({
+          message: `Image with ID ${imageId} deleted successfully`,
+        });
+      } catch (error) {
+        return res.status(500).json({
+          error: true,
+          message: "An error occurred while deleting the image",
+        });
+      }
     } catch (error) {
       console.log(error);
       return res.status(500).json({
